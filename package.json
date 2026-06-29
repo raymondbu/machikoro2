@@ -1,0 +1,13 @@
+{
+  "name": "machikoro2",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "npm --prefix server test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}

@@ -4,37 +4,53 @@ const { ESTABLISHMENTS, LANDMARKS, CARD_COLOR, COPIES_PER_ESTABLISHMENT } = requ
 
 const PHASE = {
   LOBBY: 'lobby',
+  INITIAL_BUILD: 'initial_build',
   ROLL_DICE: 'roll_dice',
   RESOLVE_INCOME: 'resolve_income',
   CONSTRUCT: 'construct',
   GAME_OVER: 'game_over',
 };
 
+const MARKET_ROWS = {
+  LEVEL_1_TO_6: 'level1to6',
+  LEVEL_7_TO_12: 'level7to12',
+};
+
+const INITIAL_BUILD_ROUNDS = 3;
+const LANDMARKS_TO_WIN = 3;
+
 class GameState {
   constructor(players) {
     // players: [{ id: socketId, name: string }]
-    this.phase = PHASE.ROLL_DICE;
+    this.phase = PHASE.INITIAL_BUILD;
     this.turn = 0;                  // index into this.players
     this.round = 1;
+    this.initialBuildTurnsTaken = 0;
+    this.initialBuildRounds = INITIAL_BUILD_ROUNDS;
     this.lastRoll = null;           // { dice: [n, n], total: n, isDoubles: bool }
     this.pendingTarget = null;      // for TV Station / Business Complex
     this.winner = null;
     this.log = [];                  // activity feed entries
 
-    // Build the marketplace deck
-    this.deck = this._buildDeck();
-    this.marketplace = this._drawMarketplace(); // 5 face-up cards
+    // Build the marketplace decks
+    this.decks = this._buildDecks();
+    this.marketplace = {
+      [MARKET_ROWS.LEVEL_1_TO_6]: this._drawMarketplace(MARKET_ROWS.LEVEL_1_TO_6),
+      [MARKET_ROWS.LEVEL_7_TO_12]: this._drawMarketplace(MARKET_ROWS.LEVEL_7_TO_12),
+    };
 
     // Initialise each player
     this.players = players.map((p, index) => ({
       id: p.id,
       name: p.name,
-      coins: index === 0 ? 3 : 3,    // everyone starts with 3 coins in MK2
+      coins: 5,
       establishments: [],             // cards they've bought
-      landmarks: LANDMARKS.map(l => ({
-        ...l,
-        built: l.builtByDefault,
-      })),
+      landmarks: LANDMARKS
+        .filter(l => l.id !== 'city_hall')
+        .map(l => ({
+          ...l,
+          built: false,
+        })),
       extraTurn: false,               // triggered by Amusement Park doubles
       canReroll: false,               // triggered by Radio Tower (once per turn)
     }));
@@ -42,22 +58,30 @@ class GameState {
 
   // ── Deck / Marketplace ──────────────────────────────────────────────
 
-  _buildDeck() {
-    const deck = [];
+  _buildDecks() {
+    const decks = {
+      [MARKET_ROWS.LEVEL_1_TO_6]: [],
+      [MARKET_ROWS.LEVEL_7_TO_12]: [],
+    };
     for (const card of ESTABLISHMENTS) {
+      const rowKey = this._marketRowForCard(card);
       for (let i = 0; i < COPIES_PER_ESTABLISHMENT; i++) {
-        deck.push({ ...card, uid: `${card.id}_${i}` });
+        decks[rowKey].push({ ...card, uid: `${card.id}_${i}` });
       }
     }
-    return this._shuffle(deck);
+    return {
+      [MARKET_ROWS.LEVEL_1_TO_6]: this._shuffle(decks[MARKET_ROWS.LEVEL_1_TO_6]),
+      [MARKET_ROWS.LEVEL_7_TO_12]: this._shuffle(decks[MARKET_ROWS.LEVEL_7_TO_12]),
+    };
   }
 
-  _drawMarketplace() {
+  _drawMarketplace(rowKey) {
     // Draw up to 5 unique establishment types for the face-up market
     const market = [];
     const seenIds = new Set();
-    while (market.length < 5 && this.deck.length > 0) {
-      const card = this.deck.shift();
+    const deck = this.decks[rowKey];
+    while (market.length < 5 && deck.length > 0) {
+      const card = deck.shift();
       if (!seenIds.has(card.id)) {
         seenIds.add(card.id);
         market.push(card);
@@ -72,16 +96,18 @@ class GameState {
     return market;
   }
 
-  replenishMarketplace() {
+  replenishMarketplace(rowKey) {
     // After a purchase, refill any gaps with new unique card types
-    const seenIds = new Set(this.marketplace.map(c => c.id));
-    while (this.marketplace.length < 5 && this.deck.length > 0) {
-      const card = this.deck.shift();
+    const market = this.marketplace[rowKey];
+    const deck = this.decks[rowKey];
+    const seenIds = new Set(market.map(c => c.id));
+    while (market.length < 5 && deck.length > 0) {
+      const card = deck.shift();
       if (!seenIds.has(card.id)) {
         seenIds.add(card.id);
-        this.marketplace.push(card);
+        market.push(card);
       } else {
-        const existing = this.marketplace.find(c => c.id === card.id);
+        const existing = market.find(c => c.id === card.id);
         if (existing) existing.stackCount = (existing.stackCount || 1) + 1;
       }
     }
@@ -92,6 +118,7 @@ class GameState {
   rollDice(playerId, numDice = 1) {
     if (!this._isActivePlayer(playerId)) return { error: 'Not your turn' };
     if (this.phase !== PHASE.ROLL_DICE) return { error: 'Cannot roll right now' };
+    if (![1, 2].includes(numDice)) return { error: 'Choose 1 or 2 dice' };
 
     const dice = Array.from({ length: numDice }, () => Math.ceil(Math.random() * 6));
     const total = dice.reduce((a, b) => a + b, 0);
@@ -274,13 +301,15 @@ class GameState {
 
   buyEstablishment(playerId, marketplaceCardUid) {
     if (!this._isActivePlayer(playerId)) return { error: 'Not your turn' };
-    if (this.phase !== PHASE.CONSTRUCT) return { error: 'Cannot build right now' };
+    if (![PHASE.INITIAL_BUILD, PHASE.CONSTRUCT].includes(this.phase)) {
+      return { error: 'Cannot build right now' };
+    }
 
     const player = this._activePlayer();
-    const cardIndex = this.marketplace.findIndex(c => c.uid === marketplaceCardUid);
-    if (cardIndex === -1) return { error: 'Card not in marketplace' };
+    const marketMatch = this._findMarketplaceCard(marketplaceCardUid);
+    if (!marketMatch) return { error: 'Card not in marketplace' };
 
-    const card = this.marketplace[cardIndex];
+    const { rowKey, card, cardIndex } = marketMatch;
     if (player.coins < card.cost) return { error: 'Not enough coins' };
 
     // Purple cards: can only own one of each
@@ -294,13 +323,19 @@ class GameState {
 
     // Remove from marketplace (or decrement stack)
     if (card.stackCount && card.stackCount > 1) {
-      this.marketplace[cardIndex].stackCount -= 1;
+      this.marketplace[rowKey][cardIndex].stackCount -= 1;
     } else {
-      this.marketplace.splice(cardIndex, 1);
-      this.replenishMarketplace();
+      this.marketplace[rowKey].splice(cardIndex, 1);
+      this.replenishMarketplace(rowKey);
     }
 
     this._addLog(`${player.name} bought ${card.name} for ${card.cost} coin(s)`);
+    if (this.phase === PHASE.INITIAL_BUILD) {
+      this._endInitialBuildTurn();
+      return { success: true };
+    }
+
+    this._endTurn();
     return { success: true };
   }
 
@@ -320,14 +355,15 @@ class GameState {
     this._addLog(`${player.name} built ${landmark.name}!`);
 
     // Check win condition
-    const allBuilt = player.landmarks.some(l => l.built);
-    if (allBuilt) {
+    const builtLandmarks = player.landmarks.filter(l => l.built).length;
+    if (builtLandmarks >= LANDMARKS_TO_WIN) {
       this.phase = PHASE.GAME_OVER;
       this.winner = player.id;
       this._addLog(`🎉 ${player.name} wins!`);
       return { success: true, winner: player.id };
     }
 
+    this._endTurn();
     return { success: true };
   }
 
@@ -342,11 +378,28 @@ class GameState {
     if (hasAirport) {
       player.coins += 10;
       this._addLog(`${player.name} skipped construction — Airport bonus: +10 coins`);
+    } else if (player.coins === 0) {
+      player.coins += 1;
+      this._addLog(`${player.name} skipped construction with 0 coins — bank gives 1 coin`);
     } else {
       this._addLog(`${player.name} skipped construction`);
     }
 
     this._endTurn();
+    return { success: true };
+  }
+
+  takeSetupCoin(playerId) {
+    if (!this._isActivePlayer(playerId)) return { error: 'Not your turn' };
+    if (this.phase !== PHASE.INITIAL_BUILD) return { error: 'Cannot take setup coin right now' };
+
+    const player = this._activePlayer();
+    if (this._canAffordVisibleEstablishment(player)) {
+      return { error: 'You can afford a market card' };
+    }
+
+    player.coins += 1;
+    this._addLog(`${player.name} could not afford a setup card - bank gives 1 coin`);
     return { success: true };
   }
 
@@ -368,13 +421,6 @@ class GameState {
 
     // Reset per-turn flags
     nextPlayer.canReroll = false;
-
-    // City Hall: if new active player has 0 coins, get 1
-    const hasCityHall = nextPlayer.landmarks.find(l => l.id === 'city_hall')?.built;
-    if (hasCityHall && nextPlayer.coins === 0) {
-      nextPlayer.coins += 1;
-      this._addLog(`${nextPlayer.name} has 0 coins — City Hall gives 1 coin`);
-    }
 
     // Radio Tower reset for next player
     const hasRadioTower = nextPlayer.landmarks.find(l => l.id === 'radio_tower')?.built;
@@ -400,6 +446,51 @@ class GameState {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────
+
+  _endInitialBuildTurn() {
+    this.initialBuildTurnsTaken++;
+
+    const totalInitialBuildTurns = this.players.length * this.initialBuildRounds;
+    if (this.initialBuildTurnsTaken >= totalInitialBuildTurns) {
+      this.turn = 0;
+      this.round = 1;
+      this.phase = PHASE.ROLL_DICE;
+      this._addLog(`--- ${this._activePlayer().name}'s turn (Round ${this.round}) ---`);
+      return;
+    }
+
+    this.turn = (this.turn + 1) % this.players.length;
+    this._addLog(`--- Setup buy ${this.initialBuildRound}/3: ${this._activePlayer().name}'s turn ---`);
+  }
+
+  _marketRowForCard(card) {
+    return Math.max(...card.activation) <= 6
+      ? MARKET_ROWS.LEVEL_1_TO_6
+      : MARKET_ROWS.LEVEL_7_TO_12;
+  }
+
+  _findMarketplaceCard(cardUid) {
+    for (const rowKey of Object.values(MARKET_ROWS)) {
+      const cardIndex = this.marketplace[rowKey].findIndex(c => c.uid === cardUid);
+      if (cardIndex !== -1) {
+        return { rowKey, card: this.marketplace[rowKey][cardIndex], cardIndex };
+      }
+    }
+    return null;
+  }
+
+  _visibleMarketplaceCards() {
+    return Object.values(MARKET_ROWS).flatMap(rowKey => this.marketplace[rowKey] || []);
+  }
+
+  _canAffordVisibleEstablishment(player) {
+    return this._visibleMarketplaceCards().some(card => player.coins >= card.cost);
+  }
+
+  get initialBuildRound() {
+    if (this.phase !== PHASE.INITIAL_BUILD) return this.initialBuildRounds;
+    return Math.floor(this.initialBuildTurnsTaken / this.players.length) + 1;
+  }
 
   _activePlayer() {
     return this.players[this.turn];
@@ -442,11 +533,20 @@ class GameState {
       phase: this.phase,
       turn: this.turn,
       round: this.round,
+      initialBuildRound: this.initialBuildRound,
+      initialBuildRounds: this.initialBuildRounds,
+      initialBuildTurnsTaken: this.initialBuildTurnsTaken,
       lastRoll: this.lastRoll,
       pendingTarget: this.pendingTarget,
       winner: this.winner,
-      deckCount: this.deck.length,
-      marketplace: this.marketplace.map(({ income, ...rest }) => rest),
+      deckCount: {
+        [MARKET_ROWS.LEVEL_1_TO_6]: this.decks[MARKET_ROWS.LEVEL_1_TO_6].length,
+        [MARKET_ROWS.LEVEL_7_TO_12]: this.decks[MARKET_ROWS.LEVEL_7_TO_12].length,
+      },
+      marketplace: {
+        [MARKET_ROWS.LEVEL_1_TO_6]: this.marketplace[MARKET_ROWS.LEVEL_1_TO_6].map(({ income, ...rest }) => rest),
+        [MARKET_ROWS.LEVEL_7_TO_12]: this.marketplace[MARKET_ROWS.LEVEL_7_TO_12].map(({ income, ...rest }) => rest),
+      },
       players: this.players.map(p => ({
         ...p,
         establishments: p.establishments.map(({ income, ...rest }) => rest),

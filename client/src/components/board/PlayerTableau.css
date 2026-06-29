@@ -19,6 +19,18 @@
   margin-bottom: 10px;
 }
 
+.tableau-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tableau-landmark-progress {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a8e7f;
+}
+
 .tableau-coins {
   display: flex;
   align-items: center;
@@ -62,10 +74,14 @@
 }
 
 .landmark-icon {
+  color: currentColor;
   font-size: 12px;
 }
 
 .landmark-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   margin-left: 2px;
   font-size: 10px;
   opacity: 0.7;

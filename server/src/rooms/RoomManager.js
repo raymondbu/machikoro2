@@ -15,7 +15,7 @@ class RoomManager {
     };
     socket.join(roomCode);
     socket.roomCode = roomCode;
-    socket.emit('room:update', this.rooms[roomCode]);
+    socket.emit('room:update', this._roomView(this.rooms[roomCode], socket.id));
     console.log(`Room ${roomCode} created by ${playerName}`);
   }
 
@@ -28,7 +28,7 @@ class RoomManager {
     room.players.push({ id: socket.id, name: playerName, host: false });
     socket.join(roomCode);
     socket.roomCode = roomCode;
-    this.io.to(roomCode).emit('room:update', room);
+    this._emitRoomUpdate(roomCode);
     console.log(`${playerName} joined room ${roomCode}`);
   }
 
@@ -66,6 +66,7 @@ class RoomManager {
       case 'resolve_purple_target': result = gs.resolvePurpleTarget(socket.id, action.targetPlayerId, action.swapCardUid ?? null); break;
       case 'buy_establishment':   result = gs.buyEstablishment(socket.id, action.cardUid); break;
       case 'build_landmark':      result = gs.buildLandmark(socket.id, action.landmarkId); break;
+      case 'take_setup_coin':     result = gs.takeSetupCoin(socket.id); break;
       case 'skip_construction':   result = gs.skipConstruction(socket.id); break;
       default: return socket.emit('error', `Unknown action: ${action.type}`);
     }
@@ -99,7 +100,20 @@ class RoomManager {
       room.players[0].host = true;
     }
 
-    this.io.to(roomCode).emit('room:update', room);
+    this._emitRoomUpdate(roomCode);
+  }
+
+  _emitRoomUpdate(roomCode) {
+    const room = this.rooms[roomCode];
+    if (!room) return;
+
+    for (const player of room.players) {
+      this.io.to(player.id).emit('room:update', this._roomView(room, player.id));
+    }
+  }
+
+  _roomView(room, currentPlayerId) {
+    return { ...room, currentPlayerId };
   }
 }
 

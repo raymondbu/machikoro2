@@ -4,6 +4,10 @@ node_modules/
 # Production builds
 dist/
 
+# Test artifacts
+test-results/
+playwright-report/
+
 # Environment and sensitive data
 .env
 .env.local

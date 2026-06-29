@@ -4,10 +4,15 @@ import useGameStore from '../../store/gameStore';
 export default function JoinRoom({ onJoinRoom }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const { room, playerId } = useGameStore();
+  const { room, playerId, roomRole } = useGameStore();
 
   // Check if this player has joined a room (but didn't create it)
-  const hasJoined = room && !room.players.find((p) => p.id === playerId)?.host;
+  const currentPlayerId = playerId ?? room?.currentPlayerId;
+  const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
+  const hasJoined = room && (
+    roomRole === 'guest'
+    || (currentPlayer && !currentPlayer.host)
+  );
 
   function handleJoin(e) {
     e.preventDefault();
@@ -42,7 +47,7 @@ export default function JoinRoom({ onJoinRoom }) {
               <div className="player-dot connected" />
               <span>{player.name}</span>
               {player.host && <span className="player-badge">host</span>}
-              {player.id === playerId && (
+              {player.id === currentPlayerId && (
                 <span className="player-badge you">you</span>
               )}
             </div>

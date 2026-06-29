@@ -60,6 +60,9 @@
 
 /* ── Secondary action button ────────────────────── */
 .action-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   height: 36px;
   padding: 0 14px;
   background: transparent;
@@ -142,10 +145,36 @@
 }
 
 .dice-face {
-  font-size: 28px;
-  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #f0a500;
+  border-radius: 7px;
+  color: #f0a500;
+  position: relative;
+  flex-shrink: 0;
   animation: dieRoll 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
+
+.dice-pip {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dice-pip-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dice-pip-top-left { top: 6px; left: 6px; }
+.dice-pip-top-right { top: 6px; right: 6px; }
+.dice-pip-mid-left { top: 50%; left: 6px; transform: translateY(-50%); }
+.dice-pip-mid-right { top: 50%; right: 6px; transform: translateY(-50%); }
+.dice-pip-bottom-left { bottom: 6px; left: 6px; }
+.dice-pip-bottom-right { bottom: 6px; right: 6px; }
 
 @keyframes dieRoll {
   from { transform: rotate(-30deg) scale(0.5); opacity: 0; }
@@ -209,7 +238,6 @@
 }
 
 .dice-spinner {
-  font-size: 20px;
   display: inline-block;
   animation: spin 0.4s linear infinite;
 }

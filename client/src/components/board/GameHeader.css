@@ -74,6 +74,7 @@
 }
 
 .coin-icon {
+  color: currentColor;
   font-size: 13px;
 }
 

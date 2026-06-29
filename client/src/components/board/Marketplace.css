@@ -14,6 +14,24 @@
   margin-bottom: 12px;
 }
 
+.market-row + .market-row {
+  margin-top: 14px;
+}
+
+.market-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.market-row-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9bba6;
+}
+
 .section-title {
   font-size: 13px;
   font-weight: 600;
@@ -133,6 +151,7 @@
 }
 
 .coin-icon {
+  color: currentColor;
   font-size: 11px;
 }
 

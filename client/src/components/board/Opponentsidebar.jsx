@@ -1,4 +1,5 @@
 import './OpponentSidebar.css';
+import { CoinIcon } from '../ui/GameIcons';
 
 export default function OpponentSidebar({ opponents, activePlayerId, isOpen, onToggle }) {
   return (
@@ -31,7 +32,6 @@ export default function OpponentSidebar({ opponents, activePlayerId, isOpen, onT
 
 function OpponentCard({ player, isActive }) {
   const builtCount = player.landmarks.filter((l) => l.built).length;
-  const totalLandmarks = player.landmarks.length;
 
   return (
     <div className={`opponent-card ${isActive ? 'active' : ''}`}>
@@ -41,7 +41,7 @@ function OpponentCard({ player, isActive }) {
           <span className="opp-name">{player.name}</span>
         </div>
         <div className="opp-coins">
-          <span>🪙</span>
+          <CoinIcon className="coin-icon" />
           <span>{player.coins}</span>
         </div>
       </div>
@@ -57,7 +57,7 @@ function OpponentCard({ player, isActive }) {
         ))}
       </div>
       <div className="opp-landmark-label">
-        {builtCount}/{totalLandmarks} landmarks
+        {builtCount}/3 landmarks
       </div>
 
       {/* Card count */}

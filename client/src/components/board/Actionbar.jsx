@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import './ActionBar.css';
+import { CoinIcon } from '../ui/GameIcons';
 
 export default function ActionBar({ gameState, me, isMyTurn, onAction }) {
   const [rolling, setRolling] = useState(false);
   const [numDice, setNumDice] = useState(1);
 
   const { phase, lastRoll, pendingTarget } = gameState;
-  const hasTrainStation = me?.landmarks.find((l) => l.id === 'train_station')?.built;
   const hasHarbor = me?.landmarks.find((l) => l.id === 'harbor')?.built;
   const hasRadioTower = me?.landmarks.find((l) => l.id === 'radio_tower')?.built;
+  const visibleMarketCards = Object.values(gameState.marketplace ?? {}).flat();
+  const canAffordSetupCard = visibleMarketCards.some((card) => (me?.coins ?? 0) >= card.cost);
 
   function handleRoll() {
     setRolling(true);
@@ -22,26 +24,42 @@ export default function ActionBar({ gameState, me, isMyTurn, onAction }) {
     setTimeout(() => setRolling(false), 600);
   }
 
+  if (isMyTurn && phase === 'initial_build') {
+    return (
+      <div className="action-bar">
+        <span className="action-hint">
+          Setup buy {gameState.initialBuildRound ?? 1}/{gameState.initialBuildRounds ?? 3}
+        </span>
+        {!canAffordSetupCard && (
+          <button
+            className="action-secondary"
+            onClick={() => onAction({ type: 'take_setup_coin' })}
+          >
+            Take 1 coin <CoinIcon className="coin-icon" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   // ── Roll phase ────────────────────────────────────────────────────
   if (isMyTurn && phase === 'roll_dice') {
     return (
       <div className="action-bar">
-        {hasTrainStation && (
-          <div className="dice-toggle">
-            <button
-              className={`dice-btn ${numDice === 1 ? 'active' : ''}`}
-              onClick={() => setNumDice(1)}
-            >
-              1 die
-            </button>
-            <button
-              className={`dice-btn ${numDice === 2 ? 'active' : ''}`}
-              onClick={() => setNumDice(2)}
-            >
-              2 dice
-            </button>
-          </div>
-        )}
+        <div className="dice-toggle">
+          <button
+            className={`dice-btn ${numDice === 1 ? 'active' : ''}`}
+            onClick={() => setNumDice(1)}
+          >
+            1 die
+          </button>
+          <button
+            className={`dice-btn ${numDice === 2 ? 'active' : ''}`}
+            onClick={() => setNumDice(2)}
+          >
+            2 dice
+          </button>
+        </div>
         <button
           className={`action-primary ${rolling ? 'rolling' : ''}`}
           onClick={handleRoll}
@@ -124,7 +142,7 @@ export default function ActionBar({ gameState, me, isMyTurn, onAction }) {
                 className="action-secondary"
                 onClick={() => onAction({ type: 'build_landmark', landmarkId: lm.id })}
               >
-                Build {lm.name} 🪙{lm.cost}
+                Build {lm.name} <CoinIcon className="coin-icon" />{lm.cost}
               </button>
             ))}
           <button
@@ -163,7 +181,7 @@ export default function ActionBar({ gameState, me, isMyTurn, onAction }) {
     return (
       <div className="action-bar game-over">
         <span className="game-over-text">
-          🎉 {winner?.name ?? 'Someone'} wins!
+          {winner?.name ?? 'Someone'} wins!
         </span>
       </div>
     );
@@ -188,10 +206,24 @@ function DiceIcon() {
 }
 
 function DiceSpinner() {
-  return <span className="dice-spinner">⚄</span>;
+  return <DiceFace value={5} spinning />;
 }
 
-function DiceFace({ value }) {
-  const faces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-  return <span className="dice-face">{faces[value - 1] ?? value}</span>;
+function DiceFace({ value, spinning = false }) {
+  const pips = {
+    1: ['center'],
+    2: ['top-right', 'bottom-left'],
+    3: ['top-right', 'center', 'bottom-left'],
+    4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+    5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
+    6: ['top-left', 'top-right', 'mid-left', 'mid-right', 'bottom-left', 'bottom-right'],
+  };
+
+  return (
+    <span className={`dice-face ${spinning ? 'dice-spinner' : ''}`} aria-label={`die ${value}`}>
+      {(pips[value] ?? []).map((pos) => (
+        <span key={pos} className={`dice-pip dice-pip-${pos}`} />
+      ))}
+    </span>
+  );
 }

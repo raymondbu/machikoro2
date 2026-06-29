@@ -3,16 +3,44 @@ import useGameStore from '../../store/gameStore';
 
 export default function CreateRoom({ onCreateRoom, onStartGame }) {
   const [name, setName] = useState('');
-  const { room, playerId } = useGameStore();
+  const [createdRoom, setCreatedRoom] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { room, playerId, roomRole } = useGameStore();
 
-  const isHost = room?.players.find((p) => p.id === playerId)?.host ?? false;
+  const currentPlayerId = playerId ?? room?.currentPlayerId;
+  const isHost = createdRoom
+    || roomRole === 'host'
+    || room?.players.find((p) => p.id === currentPlayerId)?.host
+    || false;
   const canStart = room && room.players.length >= 2 && isHost;
 
   function handleCreate(e) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
+    setCreatedRoom(true);
     onCreateRoom(trimmed);
+  }
+
+  async function handleCopyRoomCode() {
+    if (!room?.code) return;
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(room.code);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = room.code;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
   }
 
   if (room) {
@@ -33,7 +61,17 @@ export default function CreateRoom({ onCreateRoom, onStartGame }) {
 
         <div className="room-code-box">
           <div className="room-code-label">Room code</div>
-          <div className="room-code-value">{room.code}</div>
+          <div className="room-code-row">
+            <div className="room-code-value">{room.code}</div>
+            <button
+              type="button"
+              className={`room-code-copy ${copied ? 'copied' : ''}`}
+              onClick={handleCopyRoomCode}
+              aria-label="Copy room code"
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
 
         <div className="player-list">
@@ -42,7 +80,7 @@ export default function CreateRoom({ onCreateRoom, onStartGame }) {
               <div className="player-dot connected" />
               <span>{player.name}</span>
               {player.host && <span className="player-badge">host</span>}
-              {player.id === playerId && !player.host && (
+              {player.id === currentPlayerId && !player.host && (
                 <span className="player-badge you">you</span>
               )}
             </div>

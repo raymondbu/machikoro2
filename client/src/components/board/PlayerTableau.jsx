@@ -1,4 +1,5 @@
 import './PlayerTableau.css';
+import { CoinIcon, LandmarkIcon } from '../ui/GameIcons';
 
 const COLOR_STYLES = {
   blue:   { text: '#60a5fa' },
@@ -17,9 +18,12 @@ export default function PlayerTableau({ player, isActive, label = 'Your city' })
     <section className={`tableau ${isActive ? 'active' : ''}`}>
       <div className="tableau-header">
         <h2 className="section-title">{label}</h2>
-        <div className="tableau-coins">
-          <span>🪙</span>
-          <span>{player.coins}</span>
+        <div className="tableau-stats">
+          <span className="tableau-landmark-progress">{builtLandmarks.length}/3 landmarks</span>
+          <div className="tableau-coins">
+            <CoinIcon className="coin-icon" />
+            <span>{player.coins}</span>
+          </div>
         </div>
       </div>
 
@@ -31,10 +35,13 @@ export default function PlayerTableau({ player, isActive, label = 'Your city' })
             className={`landmark-chip ${lm.built ? 'built' : 'unbuilt'}`}
             title={lm.effect}
           >
-            <span className="landmark-icon">{lm.built ? '🏛️' : '🚧'}</span>
+            <LandmarkIcon built={lm.built} className="landmark-icon" />
             <span className="landmark-name">{lm.name}</span>
             {!lm.built && (
-              <span className="landmark-cost">🪙{lm.cost}</span>
+              <span className="landmark-cost">
+                <CoinIcon className="coin-icon" />
+                {lm.cost}
+              </span>
             )}
           </div>
         ))}
@@ -49,7 +56,7 @@ export default function PlayerTableau({ player, isActive, label = 'Your city' })
             const style = COLOR_STYLES[card.color] ?? COLOR_STYLES.blue;
             return (
               <div
-                key={card.uid ?? `${card.id}-${i}`}
+                key={`${card.uid ?? card.id}-${i}`}
                 className="estab-chip"
                 style={{ '--chip-color': style.text }}
                 title={card.effect}

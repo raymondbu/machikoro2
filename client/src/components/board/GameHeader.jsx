@@ -1,4 +1,5 @@
 import './GameHeader.css';
+import { CoinIcon } from '../ui/GameIcons';
 
 export default function GameHeader({
   gameState,
@@ -8,26 +9,27 @@ export default function GameHeader({
   logOpen,
   onToggleLog,
 }) {
+  const roundLabel = gameState.phase === 'initial_build'
+    ? `Setup ${gameState.initialBuildRound ?? 1}/${gameState.initialBuildRounds ?? 3}`
+    : `Round ${gameState.round}`;
+
   return (
     <header className="game-header">
-      {/* Left — round + turn info */}
       <div className="header-left">
-        <span className="header-round">Round {gameState.round}</span>
+        <span className="header-round">{roundLabel}</span>
         <span className="header-divider">·</span>
         <span className={`header-turn ${isMyTurn ? 'my-turn' : ''}`}>
-          {isMyTurn ? '⚡ Your turn' : `${activePlayer?.name}'s turn`}
+          {isMyTurn ? 'Your turn' : `${activePlayer?.name}'s turn`}
         </span>
       </div>
 
-      {/* Centre — phase badge */}
       <div className="header-center">
         <PhaseBadge phase={gameState.phase} />
       </div>
 
-      {/* Right — my coins + log toggle */}
       <div className="header-right">
         <div className="coin-display">
-          <span className="coin-icon">🪙</span>
+          <CoinIcon className="coin-icon" />
           <span className="coin-count">{me?.coins ?? 0}</span>
         </div>
         <button
@@ -52,10 +54,11 @@ export default function GameHeader({
 
 function PhaseBadge({ phase }) {
   const labels = {
-    roll_dice:       { text: 'Roll dice',    color: '#60a5fa' },
-    resolve_income:  { text: 'Resolving…',   color: '#f59e0b' },
-    construct:       { text: 'Build phase',  color: '#34d399' },
-    game_over:       { text: 'Game over',    color: '#f0a500' },
+    initial_build:  { text: 'Setup buying', color: '#a78bfa' },
+    roll_dice:      { text: 'Roll dice', color: '#60a5fa' },
+    resolve_income: { text: 'Resolving...', color: '#f59e0b' },
+    construct:      { text: 'Build phase', color: '#34d399' },
+    game_over:      { text: 'Game over', color: '#f0a500' },
   };
   const { text, color } = labels[phase] ?? { text: phase, color: '#9ca3af' };
 

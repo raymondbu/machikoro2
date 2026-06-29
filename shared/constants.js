@@ -13,6 +13,7 @@ const EVENTS = {
 // Game phases (state machine)
 const PHASES = {
   LOBBY: 'lobby',
+  INITIAL_BUILD: 'initial_build',
   ROLL_DICE: 'roll_dice',
   RESOLVE_INCOME: 'resolve_income',
   CONSTRUCT: 'construct',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './WinScreen.css';
+import { CityIcon, CoinIcon, CrownIcon, TrophyIcon } from './GameIcons';
 
 export default function WinScreen({ gameState, playerId, onPlayAgain }) {
   const [visible, setVisible] = useState(false);
@@ -58,7 +59,9 @@ export default function WinScreen({ gameState, playerId, onPlayAgain }) {
         )}
 
         {/* Icon */}
-        <div className="win-icon">{isWinner ? '🏆' : '🏙️'}</div>
+        <div className="win-icon">
+          {isWinner ? <TrophyIcon /> : <CityIcon />}
+        </div>
 
         {/* Headline */}
         <h1 className="win-headline">
@@ -66,8 +69,8 @@ export default function WinScreen({ gameState, playerId, onPlayAgain }) {
         </h1>
         <p className="win-sub">
           {isWinner
-            ? 'All landmarks built — your city is complete!'
-            : `${winner.name} built all their landmarks first.`}
+            ? 'Three landmarks built — your city is complete!'
+            : `${winner.name} built three landmarks first.`}
         </p>
 
         {/* Final scores */}
@@ -84,7 +87,6 @@ export default function WinScreen({ gameState, playerId, onPlayAgain }) {
             })
             .map((player, i) => {
               const landmarksBuilt = player.landmarks.filter(l => l.built).length;
-              const totalLandmarks = player.landmarks.length;
               const isThisWinner = player.id === gameState.winner;
               const isYou = player.id === playerId;
 
@@ -94,12 +96,15 @@ export default function WinScreen({ gameState, playerId, onPlayAgain }) {
                   <span className="score-name">
                     {player.name}
                     {isYou && <span className="score-you">you</span>}
-                    {isThisWinner && <span className="score-crown">👑</span>}
+                    {isThisWinner && <CrownIcon className="score-crown" />}
                   </span>
                   <span className="score-landmarks">
-                    {landmarksBuilt}/{totalLandmarks} landmarks
+                    {landmarksBuilt}/3 landmarks
                   </span>
-                  <span className="score-coins">🪙 {player.coins}</span>
+                  <span className="score-coins">
+                    <CoinIcon className="coin-icon" />
+                    {player.coins}
+                  </span>
                 </div>
               );
             })}
